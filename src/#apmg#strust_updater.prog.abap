@@ -87,6 +87,35 @@ START-OF-SELECTION.
 
     DATA(days_until_expire) = <cert>-date_to - sy-datum.
 
+    " Determine certificate type
+    DATA(cert_type) = VALUE string( ).
+    DATA(subject_cn) = VALUE string( ).
+
+    TRY.
+        DATA(dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
+        IF line_exists( dn[ key = 'CN' ] ).
+          subject_cn = dn[ key = 'CN' ]-name.
+        ENDIF.
+      CATCH cx_root.
+        CLEAR subject_cn.
+    ENDTRY.
+
+    " Categorize certificate
+    IF <cert>-subject = <cert>-issuer.
+      cert_type = 'ROOT'.
+    ELSEIF subject_cn CA '*.' OR subject_cn CA '.'.
+      cert_type = 'DOMAIN'.
+    ELSE.
+      cert_type = 'INTER'.
+    ENDIF.
+
+    " Skip certificates not selected on screen
+    IF ( cert_type = 'ROOT' AND p_root IS INITIAL ) OR
+       ( cert_type = 'INTER' AND p_inter IS INITIAL ) OR
+       ( cert_type = 'DOMAIN' AND p_main IS INITIAL ).
+      CONTINUE.
+    ENDIF.
+
     WRITE: / <cert>-subject,
       AT 130 |{ <cert>-date_from DATE = ISO }|,
       AT 145 |{ <cert>-date_to DATE = ISO }|,
@@ -106,24 +135,21 @@ START-OF-SELECTION.
       CONTINUE.
     ENDIF.
 
-    " Get the domain of the certificate
-    DATA(dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
+    " Only process domain certificates (skip root/intermediate updates for now)
+    IF cert_type <> 'DOMAIN'.
+      WRITE /5 'Certificate type does not support automatic update' COLOR COL_TOTAL.
+      ULINE.
+      CONTINUE.
+    ENDIF.
 
-    IF NOT line_exists( dn[ key = 'CN' ] ).
+    " Get the domain of the certificate
+    IF subject_cn IS INITIAL.
       WRITE /5 'Unable to determine CN of certificate subject' COLOR COL_NEGATIVE.
       ULINE.
       CONTINUE.
     ENDIF.
 
-    DATA(domain) = dn[ key = 'CN' ]-name.
-
-    IF domain NA '.'.
-      " It's probably a root or intermediate certificate
-      " Go to their website to
-      WRITE /5 'Unable to determine domain of certificate' COLOR COL_TOTAL.
-      ULINE.
-      CONTINUE.
-    ENDIF.
+    DATA(domain) = subject_cn.
 
     WRITE: /5 'Domain:', domain COLOR COL_POSITIVE.
     SKIP.
