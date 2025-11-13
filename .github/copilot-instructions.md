@@ -8,6 +8,7 @@ ABAP Trust Management utility for SAP systems. Manages SSL/TLS certificates in A
 - `/apmg/cl_strust_cert_api` - Fetches certificates from external API (https://tools.abappm.com)
 - `/apmg/strust_installer` - Interactive program for installing domain certificates
 - `/apmg/strust_updater` - Batch program for updating expiring certificates
+- `/apmg/strust_info` - Display program for listing certificates by type (own, root, intermediate, domain)
 - `/apmg/strust_log` - Database table tracking all certificate changes
 
 ## ABAP-Specific Patterns
@@ -121,8 +122,9 @@ Batch insert via `_log_save( comment )` with timestamp.
 
 ### Report UI Patterns
 - Use `SELECTION-SCREEN` blocks with `FRAME TITLE TEXT-tXX`
-- Color output: `COLOR COL_POSITIVE` (green), `COL_NEGATIVE` (red), `COL_TOTAL` (yellow)
+- Color output: `COLOR COL_POSITIVE` (green), `COL_NEGATIVE` (red), `COL_TOTAL` (yellow), `COL_GROUP` (orange)
 - Formatting: Cert subject at 0-49, date_from at 130, date_to at 145, status at 158
+- Certificate categorization: Root (self-signed: subject = issuer), Intermediate (subject ≠ issuer, no domain pattern), Domain (contains `.` in CN)
 
 ## Version & Licensing
 - Version: `2.1.1` (update `c_version` constant when releasing)
