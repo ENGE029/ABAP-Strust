@@ -187,13 +187,6 @@ FORM display_certificate USING cert TYPE /apmg/cl_strust=>ty_certattr
 
   DATA(days_until_expire) = cert-date_to - sy-datum.
 
-  " Determine status color based on expiry
-  DATA(status_color) = COND #(
-    WHEN days_until_expire < 0   THEN col_negative
-    WHEN days_until_expire <= 7  THEN col_group
-    WHEN days_until_expire <= 30 THEN col_total
-    ELSE col_positive ).
-
   " Shorten subject if too long
   DATA(subject_short) = cert-subject.
   IF strlen( subject_short ) > 75.
@@ -204,9 +197,9 @@ FORM display_certificate USING cert TYPE /apmg/cl_strust=>ty_certattr
   WRITE: /5 subject_short,
     AT 130 |{ cert-date_from DATE = ISO }|,
     AT 145 |{ cert-date_to DATE = ISO }|,
-    AT 158 '' COLOR status_color.
+    AT 158 ''.
 
-  " Display status text
+  " Display status text with appropriate color
   IF days_until_expire < 0.
     WRITE |EXPIRED ({ abs( days_until_expire ) } days ago)| COLOR col_negative.
   ELSEIF days_until_expire = 0.
