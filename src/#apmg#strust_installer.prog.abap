@@ -30,6 +30,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-t03.
   PARAMETERS:
     p_passwd TYPE string LOWER CASE,
     p_root   AS CHECKBOX DEFAULT abap_true,
+    p_inter  AS CHECKBOX DEFAULT abap_true,
     p_main   AS CHECKBOX DEFAULT abap_true,
     p_test   AS CHECKBOX DEFAULT abap_true.
 SELECTION-SCREEN END OF BLOCK b3.
@@ -49,7 +50,7 @@ INITIALIZATION.
 
 START-OF-SELECTION.
 
-  IF p_root IS INITIAL AND p_main IS INITIAL.
+  IF p_root IS INITIAL AND p_inter IS INITIAL AND p_main IS INITIAL.
     MESSAGE 'No certificates selected for installation' TYPE 'I' DISPLAY LIKE 'E'.
     STOP.
   ENDIF.
@@ -109,7 +110,7 @@ START-OF-SELECTION.
       " We finally have a certificate that can be used for the install, yay!
 
       " Root and intermediate certificates
-      IF p_root = abap_true.
+      IF p_root = abap_true OR p_inter = abap_true.
 
         LOOP AT ajson->members( '/intermediateCertificates' ) INTO DATA(member).
 
@@ -117,22 +118,42 @@ START-OF-SELECTION.
           DATA(inter_date_from) = ajson->get( '/intermediateCertificates/' && member && '/validFrom' ).
           DATA(inter_date_to)   = ajson->get( '/intermediateCertificates/' && member && '/validTo' ).
           DATA(inter_subject)   = 'CN=' && ajson->get( '/intermediateCertificates/' && member && '/subject/CN' ).
+          DATA(inter_issuer)    = 'CN=' && ajson->get( '/intermediateCertificates/' && member && '/issuer/CN' ).
           IF inter_subject = 'CN='.
             inter_subject = 'O=' && ajson->get( '/intermediateCertificates/' && member && '/subject/O' ).
+          ENDIF.
+          IF inter_issuer = 'CN='.
+            inter_issuer = 'O=' && ajson->get( '/intermediateCertificates/' && member && '/issuer/O' ).
           ENDIF.
           IF strlen( inter_subject ) > 78.
             inter_subject = inter_subject(75) && '...'.
           ENDIF.
 
-          IF p_test = abap_false.
-            strust->add_pem( inter_pem ).
-          ENDIF.
+          " Determine if root (self-signed) or intermediate certificate
+          DATA(is_root) = xsdbool( inter_subject = inter_issuer ).
 
-          WRITE: /10 'Root/intermediate certificate added:' COLOR COL_POSITIVE,
-            AT 50 inter_subject,
-            AT 130 inter_date_from(10),
-            AT 145 inter_date_to(10),
-            AT 158 ''.
+          IF ( is_root = abap_true AND p_root = abap_true ) OR
+             ( is_root = abap_false AND p_inter = abap_true ).
+
+            IF p_test = abap_false.
+              strust->add_pem( inter_pem ).
+            ENDIF.
+
+            IF is_root = abap_true.
+              WRITE: /10 'Root certificate added:' COLOR COL_POSITIVE,
+                AT 50 inter_subject,
+                AT 130 inter_date_from(10),
+                AT 145 inter_date_to(10),
+                AT 158 ''.
+            ELSE.
+              WRITE: /10 'Intermediate certificate added:' COLOR COL_POSITIVE,
+                AT 50 inter_subject,
+                AT 130 inter_date_from(10),
+                AT 145 inter_date_to(10),
+                AT 158 ''.
+            ENDIF.
+
+          ENDIF.
 
         ENDLOOP.
         SKIP.
