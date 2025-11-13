@@ -83,9 +83,15 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_ROOT</KEY>
-     <ENTRY>Add root/intermediate certs</ENTRY>
+     <KEY>P_INTER</KEY>
+     <ENTRY>Add intermediate certificates</ENTRY>
      <LENGTH>35</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_ROOT</KEY>
+     <ENTRY>Add root certificates</ENTRY>
+     <LENGTH>29</LENGTH>
     </item>
     <item>
      <ID>S</ID>
