@@ -108,12 +108,18 @@ START-OF-SELECTION.
       LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert>).
 
         " Parse subject to determine if it's a domain certificate
-        DATA(subject_dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
         DATA(subject_cn) = VALUE string( ).
 
-        IF line_exists( subject_dn[ key = 'CN' ] ).
-          subject_cn = subject_dn[ key = 'CN' ]-name.
-        ENDIF.
+        TRY.
+            DATA(subject_dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
+
+            IF line_exists( subject_dn[ key = 'CN' ] ).
+              subject_cn = subject_dn[ key = 'CN' ]-name.
+            ENDIF.
+          CATCH cx_root.
+            " If DN parsing fails, use empty CN
+            CLEAR subject_cn.
+        ENDTRY.
 
         " Categorize based on self-signed and CN pattern
         IF <cert>-subject = <cert>-issuer.
