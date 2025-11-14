@@ -15,16 +15,15 @@ CLASS /apmg/cl_strust_cert_api DEFINITION
   PUBLIC SECTION.
 
     CONSTANTS:
-      c_api_host     TYPE string VALUE 'https://tools.abappm.com',
+      c_rfc_dest     TYPE rfcdest VALUE 'STRUST_API',
       c_api_endpoint TYPE string VALUE '/api/v1/certificates'.
 
     CLASS-METHODS get_certificates
       IMPORTING
         !domain       TYPE string
-        !ssl_id       TYPE ssfapplssl DEFAULT 'ANONYM'
-        !debug        TYPE abap_bool DEFAULT abap_false
-        !host         TYPE string DEFAULT c_api_host
+        !rfc_dest     TYPE rfcdest DEFAULT c_rfc_dest
         !endpoint     TYPE string DEFAULT c_api_endpoint
+        !debug        TYPE abap_bool DEFAULT abap_false
       RETURNING
         VALUE(result) TYPE string
       RAISING
@@ -35,8 +34,7 @@ CLASS /apmg/cl_strust_cert_api DEFINITION
 
     CLASS-METHODS _client
       IMPORTING
-        ssl_id        TYPE ssfapplssl
-        host          TYPE string
+        rfc_dest      TYPE rfcdest
         uri           TYPE string
       RETURNING
         VALUE(result) TYPE REF TO if_http_client
@@ -73,9 +71,8 @@ CLASS /apmg/cl_strust_cert_api IMPLEMENTATION.
     query = cl_abap_dyn_prg=>escape_xss_url( query ).
 
     DATA(http_client) = _client(
-      ssl_id = ssl_id
-      host   = host
-      uri    = |{ endpoint }?domain={ query }| ).
+      rfc_dest = rfc_dest
+      uri      = |{ endpoint }?domain={ query }| ).
 
     DATA(fetch_response) = _response( http_client ).
 
@@ -100,14 +97,13 @@ CLASS /apmg/cl_strust_cert_api IMPLEMENTATION.
 
   METHOD _client.
 
-    cl_http_client=>create_by_url(
+    cl_http_client=>create_by_destination(
       EXPORTING
-        url    = host
-        ssl_id = ssl_id
+        destination = rfc_dest
       IMPORTING
-        client = result
+        client      = result
       EXCEPTIONS
-        OTHERS = 99 ).
+        OTHERS      = 99 ).
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE /apmg/cx_error_t100.
     ENDIF.
