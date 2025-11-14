@@ -20,9 +20,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-t02.
 SELECTION-SCREEN END OF BLOCK b2.
 
 SELECTION-SCREEN BEGIN OF BLOCK b4 WITH FRAME TITLE TEXT-t04.
-  PARAMETERS:
-    p_rfcdes TYPE rfcdest OBLIGATORY,
-    p_endpnt TYPE string OBLIGATORY LOWER CASE.
+  PARAMETERS p_rfcdes TYPE rfcdest OBLIGATORY.
 SELECTION-SCREEN END OF BLOCK b4.
 
 SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-t03.
@@ -45,7 +43,6 @@ INITIALIZATION.
   ENDIF.
 
   p_rfcdes = /apmg/cl_strust_cert_api=>c_rfc_dest.
-  p_endpnt = /apmg/cl_strust_cert_api=>c_api_endpoint.
 
 START-OF-SELECTION.
 
@@ -82,8 +79,7 @@ START-OF-SELECTION.
   TRY.
       DATA(json) = /apmg/cl_strust_cert_api=>get_certificates(
         rfc_dest = p_rfcdes
-        domain   = p_domain
-        endpoint = p_endpnt ).
+        domain   = p_domain ).
 
       TRY.
           DATA(ajson) = zcl_ajson=>parse( json ).

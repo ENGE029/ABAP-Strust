@@ -59,12 +59,6 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_ENDPNT</KEY>
-     <ENTRY>Endpoint</ENTRY>
-     <LENGTH>16</LENGTH>
-    </item>
-    <item>
-     <ID>S</ID>
      <KEY>P_HOST</KEY>
      <ENTRY>Host</ENTRY>
      <LENGTH>12</LENGTH>
@@ -80,6 +74,12 @@
      <KEY>P_PASSWD</KEY>
      <ENTRY>Password</ENTRY>
      <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_RFCDES</KEY>
+     <ENTRY>RFC Destination</ENTRY>
+     <LENGTH>80</LENGTH>
     </item>
     <item>
      <ID>S</ID>

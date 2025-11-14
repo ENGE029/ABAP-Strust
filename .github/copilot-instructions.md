@@ -62,7 +62,7 @@ strust->load( create = abap_true )->add_pem( certificate )->update( ).
 **External API & RFC Destination:**
 - `/apmg/cl_strust_cert_api` queries certificate API via RFC destination `STRUST_API`
 - Default endpoint: `https://tools.abappm.com/api/v1/certificates`
-- RFC destination auto-created by abapGit from `src/strust_api.http.xml`
+- RFC destination must be created manually in SM59 (see README for setup instructions)
 - Handles wildcard domains by replacing `*` with `api` subdomain
 - Proxy configuration managed centrally in SM59 (no code changes needed)
 

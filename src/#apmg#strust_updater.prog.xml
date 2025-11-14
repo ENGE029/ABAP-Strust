@@ -54,14 +54,8 @@
     <item>
      <ID>S</ID>
      <KEY>P_DAYS</KEY>
-     <ENTRY>Minimum days before reneval</ENTRY>
-     <LENGTH>35</LENGTH>
-    </item>
-    <item>
-     <ID>S</ID>
-     <KEY>P_ENDPNT</KEY>
-     <ENTRY>Endpoint</ENTRY>
-     <LENGTH>16</LENGTH>
+     <ENTRY>Days until expiry</ENTRY>
+     <LENGTH>25</LENGTH>
     </item>
     <item>
      <ID>S</ID>
@@ -85,13 +79,19 @@
      <ID>S</ID>
      <KEY>P_REMOVE</KEY>
      <ENTRY>Remove expired certificates</ENTRY>
-     <LENGTH>35</LENGTH>
+     <LENGTH>34</LENGTH>
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_INTER</KEY>
-     <ENTRY>Update intermediate certificates</ENTRY>
-     <LENGTH>38</LENGTH>
+     <KEY>P_RFCDES</KEY>
+     <ENTRY>RFC Destination</ENTRY>
+     <LENGTH>80</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_ROOT</KEY>
+     <ENTRY>Add root and intermediate certificates</ENTRY>
+     <LENGTH>45</LENGTH>
     </item>
     <item>
      <ID>S</ID>

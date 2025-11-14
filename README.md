@@ -95,6 +95,29 @@ or
 
 Specify the `strust` module as a dependency in your project and import it to your namespace using [apm](https://abappm.com).
 
+### RFC Destination Setup
+
+The installer and updater programs require an HTTP RFC destination named `STRUST_API` to fetch certificates from the external API.
+
+**Create RFC destination in SM59:**
+
+1. Go to transaction **SM59**
+2. Create new RFC destination (type **G** - HTTP connection to external server)
+3. **RFC Destination:** `STRUST_API`
+4. **Description:** `STRUST Certificate API`
+5. **Technical Settings:**
+   - **Target Host:** `tools.abappm.com`
+   - **Port:** `443`
+   - **Path Prefix:** `/api/v1/certificates`
+6. **Logon & Security:**
+   - **SSL:** Active
+   - **SSL Certificate:** `ANONYM` (or your SSL client PSE)
+7. **Special Options:**
+   - If you need proxy access, configure it in the **Proxy Settings** tab
+8. **Test Connection** to verify
+
+This setup allows centralized proxy configuration and secure certificate management without hardcoding URLs in the code.
+
 ## Contributions
 
 All contributions are welcome! Read our [Contribution Guidelines](https://github.com/abapPM/ABAP-Strust/blob/main/CONTRIBUTING.md), fork this repo, and create a pull request.

@@ -22,7 +22,6 @@ CLASS /apmg/cl_strust_cert_api DEFINITION
       IMPORTING
         !domain       TYPE string
         !rfc_dest     TYPE rfcdest DEFAULT c_rfc_dest
-        !endpoint     TYPE string DEFAULT c_api_endpoint
         !debug        TYPE abap_bool DEFAULT abap_false
       RETURNING
         VALUE(result) TYPE string
@@ -72,7 +71,7 @@ CLASS /apmg/cl_strust_cert_api IMPLEMENTATION.
 
     DATA(http_client) = _client(
       rfc_dest = rfc_dest
-      uri      = |{ endpoint }?domain={ query }| ).
+      uri      = |?domain={ query }| ).
 
     DATA(fetch_response) = _response( http_client ).
 
