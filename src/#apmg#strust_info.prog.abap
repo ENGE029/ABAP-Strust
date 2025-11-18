@@ -47,18 +47,10 @@ START-OF-SELECTION.
     STOP.
   ENDIF.
 
-  DATA:
-    psename     TYPE ssfpsename,
-    profilefile TYPE localfile,
-    profile     TYPE ssfpab.
-
-  CALL FUNCTION 'SSFPSE_FILENAME'
+  CALL FUNCTION 'SSFPSE_PARAMETER'
     EXPORTING
       context       = p_cont
       applic        = p_appl
-    IMPORTING
-      psename       = psename
-      profile       = profilefile
     EXCEPTIONS
       pse_not_found = 1
       OTHERS        = 2.
@@ -67,10 +59,11 @@ START-OF-SELECTION.
     STOP.
   ENDIF.
 
-  " Use the file path as profile parameter for SSF functions
-  profile = profilefile.
-
   TRY.
+      DATA(strust) = /apmg/cl_strust=>create(
+        context     = p_cont
+        application = p_appl
+        password    = p_passwd )->load( ).
 
       " Display PSE header
       WRITE: / 'PSE Context/Application:' COLOR COL_KEY,
@@ -82,115 +75,25 @@ START-OF-SELECTION.
       " Get and display own certificate
       IF p_own = abap_true.
         TRY.
-            DATA cert_own TYPE /apmg/cl_strust=>ty_certattr.
-            DATA cert_own_bin TYPE xstring.
+            DATA(cert_own) = strust->get_own_certificate( ).
 
-            CALL FUNCTION 'SSFC_GET_OWNCERTIFICATE'
-              EXPORTING
-                profile               = profile
-                profilepw             = p_passwd
-              IMPORTING
-                certificate           = cert_own_bin
-              EXCEPTIONS
-                ssf_krn_error         = 1
-                ssf_krn_nomemory      = 2
-                ssf_krn_nossflib      = 3
-                ssf_krn_invalid_par   = 4
-                ssf_krn_nocertificate = 5
-                OTHERS                = 6.
-
-            IF sy-subrc = 0.
-              CALL FUNCTION 'SSFC_PARSE_CERTIFICATE'
-                EXPORTING
-                  certificate         = cert_own_bin
-                IMPORTING
-                  subject             = cert_own-subject
-                  issuer              = cert_own-issuer
-                  serialno            = cert_own-serialno
-                  validfrom           = cert_own-validfrom
-                  validto             = cert_own-validto
-                EXCEPTIONS
-                  ssf_krn_error       = 1
-                  ssf_krn_nomemory    = 2
-                  ssf_krn_nossflib    = 3
-                  ssf_krn_invalid_par = 4
-                  OTHERS              = 5.
-
-              IF sy-subrc = 0.
-                cert_own-date_from = cert_own-validfrom(8).
-                cert_own-date_to   = cert_own-validto(8).
-
-                WRITE / 'Own Certificate' COLOR COL_HEADING.
-                ULINE.
-
-                PERFORM display_certificate USING cert_own 'OWN'.
-                SKIP 2.
-              ENDIF.
-            ELSE.
-              WRITE / 'Own Certificate' COLOR COL_HEADING.
-              ULINE.
-              WRITE /5 'No own certificate found' COLOR COL_TOTAL.
-              SKIP 2.
-            ENDIF.
-
-          CATCH cx_root INTO DATA(error_own).
             WRITE / 'Own Certificate' COLOR COL_HEADING.
             ULINE.
-            WRITE: /5 'Error:' COLOR COL_TOTAL, error_own->get_text( ).
+
+            PERFORM display_certificate USING cert_own 'OWN'.
+            SKIP 2.
+
+          CATCH /apmg/cx_error INTO DATA(error_own).
+            WRITE / 'Own Certificate' COLOR COL_HEADING.
+            ULINE.
+            WRITE /5 'No own certificate found or error:' COLOR COL_TOTAL.
+            WRITE error_own->get_text( ) COLOR COL_TOTAL.
             SKIP 2.
         ENDTRY.
       ENDIF.
 
       " Get certificate list
-      DATA:
-        certlist TYPE ssfbintab,
-        certs    TYPE /apmg/cl_strust=>ty_certattr_tt.
-
-      CALL FUNCTION 'SSFC_GET_CERTIFICATELIST'
-        EXPORTING
-          profile               = profile
-          profilepw             = p_passwd
-        IMPORTING
-          certificatelist       = certlist
-        EXCEPTIONS
-          ssf_krn_error         = 1
-          ssf_krn_nomemory      = 2
-          ssf_krn_nossflib      = 3
-          ssf_krn_invalid_par   = 4
-          ssf_krn_nocertificate = 5
-          OTHERS                = 6.
-
-      IF sy-subrc <> 0.
-        WRITE / 'Error reading certificate list' COLOR COL_NEGATIVE.
-        STOP.
-      ENDIF.
-
-      LOOP AT certlist ASSIGNING FIELD-SYMBOL(<certbin>).
-        DATA cert TYPE /apmg/cl_strust=>ty_certattr.
-        CLEAR cert.
-
-        CALL FUNCTION 'SSFC_PARSE_CERTIFICATE'
-          EXPORTING
-            certificate         = <certbin>
-          IMPORTING
-            subject             = cert-subject
-            issuer              = cert-issuer
-            serialno            = cert-serialno
-            validfrom           = cert-validfrom
-            validto             = cert-validto
-          EXCEPTIONS
-            ssf_krn_error       = 1
-            ssf_krn_nomemory    = 2
-            ssf_krn_nossflib    = 3
-            ssf_krn_invalid_par = 4
-            OTHERS              = 5.
-
-        IF sy-subrc = 0.
-          cert-date_from = cert-validfrom(8).
-          cert-date_to   = cert-validto(8).
-          APPEND cert TO certs.
-        ENDIF.
-      ENDLOOP.
+      DATA(certs) = strust->get_certificate_list( ).
 
       IF lines( certs ) = 0.
         WRITE: / 'No certificates found in PSE' COLOR COL_TOTAL.
