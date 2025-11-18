@@ -11,27 +11,99 @@
    </PROGDIR>
    <TPOOL>
     <item>
+     <ID>I</ID>
+     <KEY>T01</KEY>
+     <ENTRY>Category</ENTRY>
+     <LENGTH>80</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>T02</KEY>
+     <ENTRY>Certificate</ENTRY>
+     <LENGTH>80</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>T03</KEY>
+     <ENTRY>Options</ENTRY>
+     <LENGTH>80</LENGTH>
+    </item>
+    <item>
      <ID>R</ID>
      <ENTRY>Trust Management: Certificate Cleaner</ENTRY>
      <LENGTH>38</LENGTH>
     </item>
     <item>
-     <ID>T01</ID>
-     <KEY>T01</KEY>
-     <ENTRY>PSE Selection</ENTRY>
-     <LENGTH>13</LENGTH>
+     <ID>S</ID>
+     <KEY>P_APPL</KEY>
+     <ENTRY>Application</ENTRY>
+     <LENGTH>19</LENGTH>
     </item>
     <item>
-     <ID>T02</ID>
-     <KEY>T02</KEY>
-     <ENTRY>Certificate Filter</ENTRY>
-     <LENGTH>18</LENGTH>
-    </item>
-    <item>
-     <ID>T03</ID>
-     <KEY>T03</KEY>
-     <ENTRY>Cleanup Options</ENTRY>
+     <ID>S</ID>
+     <KEY>P_CONT</KEY>
+     <ENTRY>Context</ENTRY>
      <LENGTH>15</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_DUPL</KEY>
+     <ENTRY>Remove duplicate certificates</ENTRY>
+     <LENGTH>35</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_EXPIRE</KEY>
+     <ENTRY>Remove expired certificates</ENTRY>
+     <LENGTH>34</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_INTER</KEY>
+     <ENTRY>Include intermediate certificates</ENTRY>
+     <LENGTH>38</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_MAIN</KEY>
+     <ENTRY>Include domain certificates</ENTRY>
+     <LENGTH>33</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_PASSWD</KEY>
+     <ENTRY>Password</ENTRY>
+     <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_ROOT</KEY>
+     <ENTRY>Include root certificates</ENTRY>
+     <LENGTH>30</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_SUPER</KEY>
+     <ENTRY>Remove superfluous certificates</ENTRY>
+     <LENGTH>39</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_TEST</KEY>
+     <ENTRY>Test run</ENTRY>
+     <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_TEXT</KEY>
+     <ENTRY>Description of change</ENTRY>
+     <LENGTH>29</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_SUBJ</KEY>
+     <ENTRY>Subject (CN)</ENTRY>
+     <LENGTH>20</LENGTH>
     </item>
    </TPOOL>
   </asx:values>
