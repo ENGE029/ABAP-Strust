@@ -32,6 +32,17 @@ Run program `/APMG/STRUST_UPDATER` and optionally enter domains for which you wa
 
 ![Updater Result with Root Intermediate Certificates](https://github.com/abapPM/ABAP-Strust/raw/main/img/updater-4.png)
 
+### Cleanup Certificates
+
+Run program `/APMG/STRUST_CLEANER` to remove expired and duplicate certificates from ABAP Trust Management:
+
+![Cleaner Selection-Screen](https://github.com/abapPM/ABAP-Strust/raw/main/img/cleaner-1.png)
+
+The cleaner identifies and removes:
+- **Expired certificates**: Certificates past their validity date
+- **Duplicate certificates**: Multiple certificates with the same subject/issuer (keeps the newest)
+- Optional filters for root, intermediate, and domain certificates
+
 ## API
 
 Example of creating, updating, or removing a certificate using class `/apmg/cl_strust`.
