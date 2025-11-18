@@ -49,7 +49,8 @@ START-OF-SELECTION.
 
   DATA:
     psename     TYPE ssfpsename,
-    profile     TYPE localfile.
+    profilefile TYPE localfile,
+    profile     TYPE ssfpab.
 
   CALL FUNCTION 'SSFPSE_FILENAME'
     EXPORTING
@@ -57,7 +58,7 @@ START-OF-SELECTION.
       applic        = p_appl
     IMPORTING
       psename       = psename
-      profile       = profile
+      profile       = profilefile
     EXCEPTIONS
       pse_not_found = 1
       OTHERS        = 2.
@@ -65,6 +66,9 @@ START-OF-SELECTION.
     MESSAGE 'PSE not found' TYPE 'I' DISPLAY LIKE 'E'.
     STOP.
   ENDIF.
+
+  " Use the file path as profile parameter for SSF functions
+  profile = profilefile.
 
   TRY.
 
