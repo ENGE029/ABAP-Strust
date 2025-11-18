@@ -125,6 +125,7 @@ FORM read_certificate_list USING i_context TYPE psecontext
   DATA lv_validfrom TYPE string.
   DATA lv_validto TYPE string.
   DATA lv_cert_attr TYPE /apmg/cl_strust=>ty_certattr.
+  DATA total_certs TYPE i.
 
   CALL FUNCTION 'SSFC_GET_CERTIFICATELIST'
     EXPORTING
@@ -213,10 +214,11 @@ FORM read_certificate_list USING i_context TYPE psecontext
   ENDIF.
 
   " Summary
+  total_certs = lines( lt_certs_root ) + lines( lt_certs_inter ) + lines( lt_certs_domain ).
+
   ULINE.
   WRITE / 'Total Certificates:' COLOR COL_KEY.
-  WRITE AT 30 lines( lt_certs_root ) + lines( lt_certs_inter ) + lines( lt_certs_domain )
-    COLOR COL_POSITIVE.
+  WRITE AT 30 total_certs COLOR COL_POSITIVE.
   WRITE / 'Root:' COLOR COL_KEY.
   WRITE AT 30 lines( lt_certs_root ) COLOR COL_NORMAL.
   WRITE / 'Intermediate:' COLOR COL_KEY.
