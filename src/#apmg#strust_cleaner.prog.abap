@@ -91,7 +91,7 @@ START-OF-SELECTION.
     DATA(cert_type) = VALUE string( ).
     DATA(subject_cn) = VALUE string( ).
     DATA(reason) = VALUE string( ).
-    DATA(color) = VALUE c( ).
+    DATA(lv_color) = VALUE i( ).
     DATA(to_remove) = abap_false.
 
     TRY.
@@ -116,7 +116,7 @@ START-OF-SELECTION.
     IF p_expire = abap_true AND days_until_expire < 0.
       to_remove = abap_true.
       reason = 'expired'.
-      color = col_negative.
+      lv_color = col_negative.
       total_expired = total_expired + 1.
     ENDIF.
 
@@ -128,7 +128,7 @@ START-OF-SELECTION.
           AND date_to > <cert>-date_to.
         to_remove = abap_true.
         reason = 'duplicate (newer exists)'.
-        color = col_total.
+        lv_color = col_total.
         total_dupl = total_dupl + 1.
         EXIT.
       ENDLOOP.
@@ -160,7 +160,7 @@ START-OF-SELECTION.
           ELSE.
             reason = 'superfluous (domain cert in PSE)'.
           ENDIF.
-          color = col_group.
+          lv_color = col_group.
           total_super = total_super + 1.
           EXIT.
         ENDLOOP.
@@ -173,7 +173,7 @@ START-OF-SELECTION.
          ( cert_type = 'INTER' AND p_inter IS INITIAL ) OR
          ( cert_type = 'DOMAIN' AND p_main IS INITIAL ).
         to_remove = abap_false.
-        CLEAR: reason, color.
+        CLEAR: reason, lv_color.
       ENDIF.
     ENDIF.
 
@@ -184,7 +184,7 @@ START-OF-SELECTION.
       AT 158 ''.
 
     IF to_remove = abap_true.
-      WRITE reason COLOR color.
+      WRITE reason color lv_color.
       APPEND <cert> TO certs_to_remove.
       total_removed = total_removed + 1.
     ELSEIF days_until_expire > 30.
