@@ -184,7 +184,7 @@ START-OF-SELECTION.
       AT 158 ''.
 
     IF to_remove = abap_true.
-      WRITE reason color lv_color.
+      WRITE reason COLOR = lv_color.
       APPEND <cert> TO certs_to_remove.
       total_removed = total_removed + 1.
     ELSEIF days_until_expire > 30.
