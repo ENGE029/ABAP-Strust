@@ -68,27 +68,147 @@ START-OF-SELECTION.
   WRITE sy-uzeit COLOR COL_NORMAL.
   SKIP 2.
 
+  " Read PSE without acquiring exclusive lock
   TRY.
-      DATA(strust) = /apmg/cl_strust=>create(
-        context     = p_cont
-        application = p_appl
-        password    = p_passwd )->load( ).
-
-      " Get and display own certificate (read-only method after load)
-      IF p_own = abap_true.
-        PERFORM read_own_cert USING strust.
-        SKIP 2.
-      ENDIF.
-
-      " Get certificate list (read-only method after load)
-      PERFORM read_cert_list USING strust p_root p_inter p_domain.
-
-    CATCH /apmg/cx_error INTO DATA(error).
-      WRITE / 'Error loading PSE:' COLOR COL_NEGATIVE.
-      WRITE error->get_text( ) COLOR COL_NEGATIVE.
+      PERFORM read_pse_readonly USING p_cont p_appl p_passwd p_own p_root p_inter p_domain.
+    CATCH /apmg/cx_error INTO DATA(lock_error).
+      WRITE / 'Cannot read PSE' COLOR COL_NEGATIVE.
+      WRITE lock_error->get_text( ) COLOR COL_NEGATIVE.
+      WRITE / 'The PSE may be locked by another user or session' COLOR COL_TOTAL.
   ENDTRY.
 
 *---------- FORMS ----------
+
+FORM read_pse_readonly USING i_context TYPE psecontext
+                             i_applic TYPE ssfappl
+                             i_passwd TYPE string
+                             i_own TYPE abap_bool
+                             i_root TYPE abap_bool
+                             i_inter TYPE abap_bool
+                             i_domain TYPE abap_bool.
+
+  DATA certs_root TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA certs_inter TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA certs_domain TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA certs_all TYPE /apmg/cl_strust=>ty_certattr_tt.
+
+  " Try to get own certificate using class (will fail if locked, but won't affect reading)
+  IF i_own = abap_true.
+    TRY.
+        DATA(strust_temp) = /apmg/cl_strust=>create(
+          context     = i_context
+          application = i_applic
+          password    = i_passwd )->load( create = abap_false ).
+
+        WRITE / 'Own Certificate' COLOR COL_HEADING.
+        ULINE.
+
+        DATA(cert_own) = strust_temp->get_own_certificate( ).
+        PERFORM display_certificate USING cert_own 'OWN'.
+        SKIP 2.
+
+      CATCH /apmg/cx_error.
+        WRITE / 'Own Certificate' COLOR COL_HEADING.
+        ULINE.
+        WRITE /5 'Cannot read (PSE locked or no own cert)' COLOR COL_TOTAL.
+        SKIP 2.
+    ENDTRY.
+  ENDIF.
+
+  " Get certificate list
+  TRY.
+      DATA(strust) = /apmg/cl_strust=>create(
+        context     = i_context
+        application = i_applic
+        password    = i_passwd )->load( create = abap_false ).
+
+      certs_all = strust->get_certificate_list( ).
+
+    CATCH /apmg/cx_error INTO DATA(error).
+      WRITE / 'Error reading certificates:' COLOR COL_NEGATIVE.
+      WRITE error->get_text( ) COLOR COL_NEGATIVE.
+      RETURN.
+  ENDTRY.
+
+  IF lines( certs_all ) = 0.
+    WRITE / 'No certificates found in PSE' COLOR COL_TOTAL.
+    RETURN.
+  ENDIF.
+
+  " Categorize certificates
+  LOOP AT certs_all ASSIGNING FIELD-SYMBOL(<cert>).
+    DATA(subject_cn) = VALUE string( ).
+
+    TRY.
+        DATA(subject_dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
+        IF line_exists( subject_dn[ key = 'CN' ] ).
+          subject_cn = subject_dn[ key = 'CN' ]-name.
+        ENDIF.
+      CATCH cx_root.
+        CLEAR subject_cn.
+    ENDTRY.
+
+    IF <cert>-subject = <cert>-issuer.
+      APPEND <cert> TO certs_root.
+    ELSEIF subject_cn CA '*.' OR subject_cn CA '.'.
+      APPEND <cert> TO certs_domain.
+    ELSE.
+      APPEND <cert> TO certs_inter.
+    ENDIF.
+  ENDLOOP.
+
+  " Sort all categories by expiry date
+  SORT certs_root BY date_to date_from.
+  SORT certs_inter BY date_to date_from.
+  SORT certs_domain BY date_to date_from.
+
+  " Display Root Certificates
+  IF i_root = abap_true AND lines( certs_root ) > 0.
+    WRITE / 'Root Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( certs_root ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING certs_root 'ROOT'.
+    SKIP 2.
+  ENDIF.
+
+  " Display Intermediate Certificates
+  IF i_inter = abap_true AND lines( certs_inter ) > 0.
+    WRITE / 'Intermediate Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( certs_inter ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING certs_inter 'INTER'.
+    SKIP 2.
+  ENDIF.
+
+  " Display Domain Certificates
+  IF i_domain = abap_true AND lines( certs_domain ) > 0.
+    WRITE / 'Domain Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( certs_domain ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING certs_domain 'DOMAIN'.
+    SKIP 2.
+  ENDIF.
+
+  " Summary
+  DATA(total_certs) = lines( certs_root ) + lines( certs_inter ) + lines( certs_domain ).
+
+  ULINE.
+  WRITE / 'Total Certificates:' COLOR COL_KEY.
+  WRITE AT 30 total_certs COLOR COL_POSITIVE.
+  WRITE / 'Root:' COLOR COL_KEY.
+  WRITE AT 30 lines( certs_root ) COLOR COL_NORMAL.
+  WRITE / 'Intermediate:' COLOR COL_KEY.
+  WRITE AT 30 lines( certs_inter ) COLOR COL_NORMAL.
+  WRITE / 'Domain:' COLOR COL_KEY.
+  WRITE AT 30 lines( certs_domain ) COLOR COL_NORMAL.
+
+ENDFORM.
 
 FORM read_own_cert USING i_strust TYPE REF TO /apmg/cl_strust.
 
@@ -112,9 +232,14 @@ FORM read_cert_list USING i_strust TYPE REF TO /apmg/cl_strust
   DATA certs_root TYPE /apmg/cl_strust=>ty_certattr_tt.
   DATA certs_inter TYPE /apmg/cl_strust=>ty_certattr_tt.
   DATA certs_domain TYPE /apmg/cl_strust=>ty_certattr_tt.
-  DATA total_certs TYPE i.
 
-  DATA(certs) = i_strust->get_certificate_list( ).
+  TRY.
+      DATA(certs) = i_strust->get_certificate_list( ).
+    CATCH /apmg/cx_error INTO DATA(error_read).
+      WRITE / 'Error reading certificate list:' COLOR COL_NEGATIVE.
+      WRITE error_read->get_text( ) COLOR COL_NEGATIVE.
+      RETURN.
+  ENDTRY.
 
   IF lines( certs ) = 0.
     WRITE / 'No certificates found in PSE' COLOR COL_TOTAL.
@@ -182,7 +307,7 @@ FORM read_cert_list USING i_strust TYPE REF TO /apmg/cl_strust
   ENDIF.
 
   " Summary
-  total_certs = lines( certs_root ) + lines( certs_inter ) + lines( certs_domain ).
+  DATA(total_certs) = lines( certs_root ) + lines( certs_inter ) + lines( certs_domain ).
 
   ULINE.
   WRITE / 'Total Certificates:' COLOR COL_KEY.
@@ -208,13 +333,9 @@ ENDFORM.
 FORM display_certificate USING i_cert TYPE /apmg/cl_strust=>ty_certattr
                                i_cert_type TYPE string.
 
-  DATA days_expire TYPE i.
-  DATA subj_short TYPE string.
-  DATA iss_short TYPE string.
+  DATA(days_expire) = i_cert-date_to - sy-datum.
+  DATA(subj_short) = i_cert-subject.
 
-  days_expire = i_cert-date_to - sy-datum.
-
-  subj_short = i_cert-subject.
   IF strlen( subj_short ) > 75.
     subj_short = subj_short(72) && '...'.
   ENDIF.
@@ -241,7 +362,7 @@ FORM display_certificate USING i_cert TYPE /apmg/cl_strust=>ty_certattr
   ENDIF.
 
   IF i_cert_type <> 'OWN'.
-    iss_short = i_cert-issuer.
+    DATA(iss_short) = i_cert-issuer.
     IF strlen( iss_short ) > 75.
       iss_short = iss_short(72) && '...'.
     ENDIF.
