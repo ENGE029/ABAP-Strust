@@ -1,17 +1,15 @@
 REPORT /apmg/strust_info LINE-SIZE 255.
 
-************************************************************************
-* Trust Management: Certificate Information
-*
-* Lists all certificates in a PSE categorized by type:
-* - Own certificate
-* - Root certificates (self-signed)
-* - Intermediate certificates (CA-signed)
-* - Domain/Peer certificates
-*
-* Copyright 2025 apm.to Inc. <https://apm.to>
-* SPDX-License-Identifier: MIT
-************************************************************************
+"----------------------------------------------------------------------
+" Trust Management: Certificate Information (Read-Only)
+"
+" Lists all certificates in a PSE categorized by type WITHOUT acquiring
+" exclusive locks. Uses direct SSF read-only functions to avoid lock
+" conflicts when other users have the PSE open.
+"
+" Copyright 2025 apm.to Inc. <https://apm.to>
+" SPDX-License-Identifier: MIT
+"----------------------------------------------------------------------
 
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-t01.
   PARAMETERS:
@@ -59,173 +57,295 @@ START-OF-SELECTION.
     STOP.
   ENDIF.
 
-  TRY.
-      DATA(strust) = /apmg/cl_strust=>create(
-        context     = p_cont
-        application = p_appl
-        password    = p_passwd )->load( ).
+  " Display PSE header
+  WRITE / 'PSE Context/Application:' COLOR COL_KEY.
+  WRITE AT 30 p_cont COLOR COL_POSITIVE.
+  WRITE ' / ' COLOR COL_POSITIVE.
+  WRITE p_appl COLOR COL_POSITIVE.
 
-      " Display PSE header
-      WRITE: / 'PSE Context/Application:' COLOR COL_KEY,
-        AT 30 p_cont, '/', p_appl COLOR COL_POSITIVE.
-      WRITE: / 'Date/Time:' COLOR COL_KEY,
-        AT 30 |{ sy-datum DATE = ISO } { sy-uzeit TIME = ISO }|.
-      SKIP 2.
+  WRITE / 'Date/Time:' COLOR COL_KEY.
+  WRITE AT 30 sy-datum COLOR COL_NORMAL.
+  WRITE ' ' COLOR COL_NORMAL.
+  WRITE sy-uzeit COLOR COL_NORMAL.
+  SKIP 2.
 
-      " Get and display own certificate
-      IF p_own = abap_true.
-        TRY.
-            DATA(cert_own) = strust->get_own_certificate( ).
-
-            WRITE / 'Own Certificate' COLOR COL_HEADING.
-            ULINE.
-
-            PERFORM display_certificate USING cert_own 'OWN'.
-            SKIP 2.
-
-          CATCH /apmg/cx_error INTO DATA(error_own).
-            WRITE / 'Own Certificate' COLOR COL_HEADING.
-            ULINE.
-            WRITE /5 'No own certificate found or error:' COLOR COL_TOTAL.
-            WRITE error_own->get_text( ) COLOR COL_TOTAL.
-            SKIP 2.
-        ENDTRY.
-      ENDIF.
-
-      " Get certificate list
-      DATA(certs) = strust->get_certificate_list( ).
-
-      IF lines( certs ) = 0.
-        WRITE: / 'No certificates found in PSE' COLOR COL_TOTAL.
-        STOP.
-      ENDIF.
-
-      " Categorize certificates
-      DATA:
-        certs_root   TYPE /apmg/cl_strust=>ty_certattr_tt,
-        certs_inter  TYPE /apmg/cl_strust=>ty_certattr_tt,
-        certs_domain TYPE /apmg/cl_strust=>ty_certattr_tt.
-
-      LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert>).
-
-        " Parse subject to determine if it's a domain certificate
-        DATA(subject_cn) = VALUE string( ).
-
-        TRY.
-            DATA(subject_dn) = /apmg/cl_distinguished_name=>parse( <cert>-subject ).
-
-            IF line_exists( subject_dn[ key = 'CN' ] ).
-              subject_cn = subject_dn[ key = 'CN' ]-name.
-            ENDIF.
-          CATCH cx_root.
-            " If DN parsing fails, use empty CN
-            CLEAR subject_cn.
-        ENDTRY.
-
-        " Categorize based on self-signed and CN pattern
-        IF <cert>-subject = <cert>-issuer.
-          " Root certificate (self-signed)
-          APPEND <cert> TO certs_root.
-        ELSEIF subject_cn CA '*.' OR subject_cn CA '.'.
-          " Domain certificate (contains domain pattern with dot)
-          APPEND <cert> TO certs_domain.
-        ELSE.
-          " Intermediate certificate
-          APPEND <cert> TO certs_inter.
-        ENDIF.
-
-      ENDLOOP.
-
-      " Sort all categories by expiry date (most urgent first)
-      SORT certs_root BY date_to date_from.
-      SORT certs_inter BY date_to date_from.
-      SORT certs_domain BY date_to date_from.
-
-      " Display Root Certificates
-      IF p_root = abap_true AND lines( certs_root ) > 0.
-        WRITE: / |Root Certificates ({ lines( certs_root ) })| COLOR COL_HEADING.
-        ULINE.
-
-        LOOP AT certs_root ASSIGNING FIELD-SYMBOL(<root>).
-          PERFORM display_certificate USING <root> 'ROOT'.
-        ENDLOOP.
-        SKIP 2.
-      ENDIF.
-
-      " Display Intermediate Certificates
-      IF p_inter = abap_true AND lines( certs_inter ) > 0.
-        WRITE: / |Intermediate Certificates ({ lines( certs_inter ) })| COLOR COL_HEADING.
-        ULINE.
-
-        LOOP AT certs_inter ASSIGNING FIELD-SYMBOL(<inter>).
-          PERFORM display_certificate USING <inter> 'INTER'.
-        ENDLOOP.
-        SKIP 2.
-      ENDIF.
-
-      " Display Domain Certificates
-      IF p_domain = abap_true AND lines( certs_domain ) > 0.
-        WRITE: / |Domain Certificates ({ lines( certs_domain ) })| COLOR COL_HEADING.
-        ULINE.
-
-        LOOP AT certs_domain ASSIGNING FIELD-SYMBOL(<domain>).
-          PERFORM display_certificate USING <domain> 'DOMAIN'.
-        ENDLOOP.
-        SKIP 2.
-      ENDIF.
-
-      " Summary
-      ULINE.
-      WRITE: / 'Total Certificates:' COLOR COL_KEY,
-        AT 30 lines( certs ) COLOR COL_POSITIVE.
-      WRITE: / 'Root:' COLOR COL_KEY,
-        AT 30 lines( certs_root ) COLOR COL_NORMAL.
-      WRITE: / 'Intermediate:' COLOR COL_KEY,
-        AT 30 lines( certs_inter ) COLOR COL_NORMAL.
-      WRITE: / 'Domain:' COLOR COL_KEY,
-        AT 30 lines( certs_domain ) COLOR COL_NORMAL.
-
-    CATCH /apmg/cx_error INTO DATA(error).
-      WRITE: / 'Error loading PSE or certificates:' COLOR COL_NEGATIVE, error->get_text( ).
-  ENDTRY.
-
-FORM display_certificate USING cert TYPE /apmg/cl_strust=>ty_certattr
-                               cert_type TYPE string.
-
-  DATA(days_until_expire) = cert-date_to - sy-datum.
-
-  " Shorten subject if too long
-  DATA(subject_short) = cert-subject.
-  IF strlen( subject_short ) > 75.
-    subject_short = subject_short(72) && '...'.
+  " Get and display own certificate (read-only, no lock)
+  IF p_own = abap_true.
+    PERFORM read_own_certificate USING p_cont p_appl p_passwd.
+    SKIP 2.
   ENDIF.
 
-  " Display certificate details
-  WRITE: /5 subject_short,
-    AT 130 |{ cert-date_from DATE = ISO }|,
-    AT 145 |{ cert-date_to DATE = ISO }|,
-    AT 158 ''.
+  " Get certificate list (read-only, no lock)
+  PERFORM read_certificate_list USING p_cont p_appl p_passwd p_root p_inter p_domain.
 
-  " Display status text with appropriate color
-  IF days_until_expire < 0.
-    WRITE |EXPIRED ({ abs( days_until_expire ) } days ago)| COLOR COL_NEGATIVE.
-  ELSEIF days_until_expire = 0.
+*---------- FORMS ----------
+
+FORM read_own_certificate USING i_context TYPE psecontext
+                                 i_applic TYPE ssfappl
+                                 i_passwd TYPE string.
+
+  DATA lv_cert_binary TYPE xstring.
+
+  WRITE / 'Own Certificate' COLOR COL_HEADING.
+  ULINE.
+
+  CALL FUNCTION 'SSFC_GET_OWNCERTIFICATE'
+    EXPORTING
+      context    = i_context
+      applic     = i_applic
+      password   = i_passwd
+    IMPORTING
+      certificate = lv_cert_binary
+    EXCEPTIONS
+      OTHERS     = 1.
+
+  IF sy-subrc <> 0.
+    WRITE /5 'No own certificate found' COLOR COL_TOTAL.
+    RETURN.
+  ENDIF.
+
+  PERFORM parse_and_display USING lv_cert_binary 'OWN'.
+
+ENDFORM.
+
+FORM read_certificate_list USING i_context TYPE psecontext
+                                  i_applic TYPE ssfappl
+                                  i_passwd TYPE string
+                                  i_root TYPE abap_bool
+                                  i_inter TYPE abap_bool
+                                  i_domain TYPE abap_bool.
+
+  DATA lt_cert_list TYPE STANDARD TABLE OF xstring WITH KEY table_line.
+  DATA lt_certs_root TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA lt_certs_inter TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA lt_certs_domain TYPE /apmg/cl_strust=>ty_certattr_tt.
+  DATA lv_cert_item TYPE xstring.
+  DATA lv_subject TYPE string.
+  DATA lv_issuer TYPE string.
+  DATA lv_validfrom TYPE string.
+  DATA lv_validto TYPE string.
+  DATA lv_cert_attr TYPE /apmg/cl_strust=>ty_certattr.
+
+  CALL FUNCTION 'SSFC_GET_CERTIFICATELIST'
+    EXPORTING
+      context      = i_context
+      applic       = i_applic
+      password     = i_passwd
+    IMPORTING
+      certificate_list = lt_cert_list
+    EXCEPTIONS
+      OTHERS       = 1.
+
+  IF sy-subrc <> 0 OR lines( lt_cert_list ) = 0.
+    WRITE / 'No certificates found in PSE' COLOR COL_TOTAL.
+    RETURN.
+  ENDIF.
+
+  " Process each certificate
+  LOOP AT lt_cert_list INTO lv_cert_item.
+    CALL FUNCTION 'SSFC_PARSE_CERTIFICATE'
+      EXPORTING
+        certificate = lv_cert_item
+      IMPORTING
+        subject    = lv_subject
+        issuer     = lv_issuer
+        validfrom  = lv_validfrom
+        validto    = lv_validto
+      EXCEPTIONS
+        OTHERS     = 1.
+
+    IF sy-subrc = 0.
+      CLEAR lv_cert_attr.
+      lv_cert_attr-subject = lv_subject.
+      lv_cert_attr-issuer = lv_issuer.
+      lv_cert_attr-certificate = lv_cert_item.
+      lv_cert_attr-validfrom = lv_validfrom.
+      lv_cert_attr-validto = lv_validto.
+
+      IF strlen( lv_validto ) >= 8.
+        lv_cert_attr-date_to = lv_validto(8).
+      ENDIF.
+      IF strlen( lv_validfrom ) >= 8.
+        lv_cert_attr-date_from = lv_validfrom(8).
+      ENDIF.
+
+      PERFORM categorize_cert USING lv_cert_attr lv_subject
+        CHANGING lt_certs_root lt_certs_inter lt_certs_domain.
+    ENDIF.
+  ENDLOOP.
+
+  " Sort all categories by expiry date
+  SORT lt_certs_root BY date_to date_from.
+  SORT lt_certs_inter BY date_to date_from.
+  SORT lt_certs_domain BY date_to date_from.
+
+  " Display Root Certificates
+  IF i_root = abap_true AND lines( lt_certs_root ) > 0.
+    WRITE / 'Root Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( lt_certs_root ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING lt_certs_root 'ROOT'.
+    SKIP 2.
+  ENDIF.
+
+  " Display Intermediate Certificates
+  IF i_inter = abap_true AND lines( lt_certs_inter ) > 0.
+    WRITE / 'Intermediate Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( lt_certs_inter ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING lt_certs_inter 'INTER'.
+    SKIP 2.
+  ENDIF.
+
+  " Display Domain Certificates
+  IF i_domain = abap_true AND lines( lt_certs_domain ) > 0.
+    WRITE / 'Domain Certificates' COLOR COL_HEADING.
+    WRITE AT 30 '(' COLOR COL_HEADING.
+    WRITE lines( lt_certs_domain ) COLOR COL_HEADING.
+    WRITE ')' COLOR COL_HEADING.
+    ULINE.
+    PERFORM display_certs USING lt_certs_domain 'DOMAIN'.
+    SKIP 2.
+  ENDIF.
+
+  " Summary
+  ULINE.
+  WRITE / 'Total Certificates:' COLOR COL_KEY.
+  WRITE AT 30 lines( lt_certs_root ) + lines( lt_certs_inter ) + lines( lt_certs_domain )
+    COLOR COL_POSITIVE.
+  WRITE / 'Root:' COLOR COL_KEY.
+  WRITE AT 30 lines( lt_certs_root ) COLOR COL_NORMAL.
+  WRITE / 'Intermediate:' COLOR COL_KEY.
+  WRITE AT 30 lines( lt_certs_inter ) COLOR COL_NORMAL.
+  WRITE / 'Domain:' COLOR COL_KEY.
+  WRITE AT 30 lines( lt_certs_domain ) COLOR COL_NORMAL.
+
+ENDFORM.
+
+FORM categorize_cert USING i_cert TYPE /apmg/cl_strust=>ty_certattr
+                           i_subject TYPE string
+                     CHANGING c_certs_root TYPE /apmg/cl_strust=>ty_certattr_tt
+                              c_certs_inter TYPE /apmg/cl_strust=>ty_certattr_tt
+                              c_certs_domain TYPE /apmg/cl_strust=>ty_certattr_tt.
+
+  DATA lv_subject_cn TYPE string.
+
+  TRY.
+      DATA(lv_subject_dn) = /apmg/cl_distinguished_name=>parse( i_subject ).
+      IF line_exists( lv_subject_dn[ key = 'CN' ] ).
+        lv_subject_cn = lv_subject_dn[ key = 'CN' ]-name.
+      ENDIF.
+    CATCH cx_root.
+      CLEAR lv_subject_cn.
+  ENDTRY.
+
+  IF i_cert-subject = i_cert-issuer.
+    APPEND i_cert TO c_certs_root.
+  ELSEIF lv_subject_cn CA '*.' OR lv_subject_cn CA '.'.
+    APPEND i_cert TO c_certs_domain.
+  ELSE.
+    APPEND i_cert TO c_certs_inter.
+  ENDIF.
+
+ENDFORM.
+
+FORM display_certs USING i_certs TYPE /apmg/cl_strust=>ty_certattr_tt
+                        i_cert_type TYPE string.
+
+  LOOP AT i_certs INTO DATA(lv_cert).
+    PERFORM display_certificate USING lv_cert i_cert_type.
+  ENDLOOP.
+
+ENDFORM.
+
+FORM display_certificate USING i_cert TYPE /apmg/cl_strust=>ty_certattr
+                               i_cert_type TYPE string.
+
+  DATA lv_days_expire TYPE i.
+  DATA lv_subj_short TYPE string.
+  DATA lv_iss_short TYPE string.
+
+  lv_days_expire = i_cert-date_to - sy-datum.
+
+  lv_subj_short = i_cert-subject.
+  IF strlen( lv_subj_short ) > 75.
+    lv_subj_short = lv_subj_short(72) && '...'.
+  ENDIF.
+
+  WRITE /5 lv_subj_short.
+  WRITE AT 130 i_cert-date_from.
+  WRITE AT 145 i_cert-date_to.
+  WRITE AT 158 ''.
+
+  IF lv_days_expire < 0.
+    WRITE 'EXPIRED (' COLOR COL_NEGATIVE.
+    WRITE abs( lv_days_expire ) COLOR COL_NEGATIVE.
+    WRITE ' days ago)' COLOR COL_NEGATIVE.
+  ELSEIF lv_days_expire = 0.
     WRITE 'EXPIRES TODAY' COLOR COL_NEGATIVE.
-  ELSEIF days_until_expire <= 7.
-    WRITE |{ days_until_expire } days| COLOR COL_GROUP.
-  ELSEIF days_until_expire <= 30.
-    WRITE |{ days_until_expire } days| COLOR COL_TOTAL.
+  ELSEIF lv_days_expire <= 7.
+    WRITE lv_days_expire COLOR COL_GROUP.
+    WRITE ' days' COLOR COL_GROUP.
+  ELSEIF lv_days_expire <= 30.
+    WRITE lv_days_expire COLOR COL_TOTAL.
+    WRITE ' days' COLOR COL_TOTAL.
   ELSE.
     WRITE 'valid' COLOR COL_POSITIVE.
   ENDIF.
 
-  " Display issuer on next line (indented)
-  IF cert_type <> 'OWN'.
-    DATA(issuer_short) = cert-issuer.
-    IF strlen( issuer_short ) > 75.
-      issuer_short = issuer_short(72) && '...'.
+  IF i_cert_type <> 'OWN'.
+    lv_iss_short = i_cert-issuer.
+    IF strlen( lv_iss_short ) > 75.
+      lv_iss_short = lv_iss_short(72) && '...'.
     ENDIF.
-    WRITE: /10 'Issuer:' COLOR COL_KEY, issuer_short COLOR COL_NORMAL.
+    WRITE /10 'Issuer:' COLOR COL_KEY.
+    WRITE lv_iss_short COLOR COL_NORMAL.
+  ENDIF.
+
+ENDFORM.
+
+FORM parse_and_display USING i_cert_binary TYPE xstring
+                             i_cert_type TYPE string.
+
+  DATA lv_subject TYPE string.
+  DATA lv_issuer TYPE string.
+  DATA lv_validfrom TYPE string.
+  DATA lv_validto TYPE string.
+  DATA lv_cert TYPE /apmg/cl_strust=>ty_certattr.
+
+  CALL FUNCTION 'SSFC_PARSE_CERTIFICATE'
+    EXPORTING
+      certificate = i_cert_binary
+    IMPORTING
+      subject    = lv_subject
+      issuer     = lv_issuer
+      validfrom  = lv_validfrom
+      validto    = lv_validto
+    EXCEPTIONS
+      OTHERS     = 1.
+
+  IF sy-subrc = 0.
+    CLEAR lv_cert.
+    lv_cert-subject = lv_subject.
+    lv_cert-issuer = lv_issuer.
+    lv_cert-certificate = i_cert_binary.
+    lv_cert-validfrom = lv_validfrom.
+    lv_cert-validto = lv_validto.
+
+    IF strlen( lv_validto ) >= 8.
+      lv_cert-date_to = lv_validto(8).
+    ENDIF.
+    IF strlen( lv_validfrom ) >= 8.
+      lv_cert-date_from = lv_validfrom(8).
+    ENDIF.
+
+    PERFORM display_certificate USING lv_cert i_cert_type.
+  ELSE.
+    WRITE /5 'Cannot parse certificate' COLOR COL_NEGATIVE.
   ENDIF.
 
 ENDFORM.
