@@ -48,8 +48,9 @@ START-OF-SELECTION.
   ENDIF.
 
   DATA:
-    psename TYPE ssfpsename,
-    profile TYPE localfile.
+    psename     TYPE ssfpsename,
+    profile     TYPE localfile,
+    profiledata TYPE ssfpab.
 
   CALL FUNCTION 'SSFPSE_FILENAME'
     EXPORTING
@@ -65,6 +66,9 @@ START-OF-SELECTION.
     MESSAGE 'PSE not found' TYPE 'I' DISPLAY LIKE 'E'.
     STOP.
   ENDIF.
+
+  " Read the profile content
+  profiledata = profile.
 
   TRY.
 
@@ -83,7 +87,7 @@ START-OF-SELECTION.
 
             CALL FUNCTION 'SSFC_GET_OWNCERTIFICATE'
               EXPORTING
-                profile               = profile
+                profile               = profiledata
                 profilepw             = p_passwd
               IMPORTING
                 certificate           = cert_own_bin
@@ -144,7 +148,7 @@ START-OF-SELECTION.
 
       CALL FUNCTION 'SSFC_GET_CERTIFICATELIST'
         EXPORTING
-          profile               = profile
+          profile               = profiledata
           profilepw             = p_passwd
         IMPORTING
           certificatelist       = certlist
