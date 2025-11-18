@@ -49,7 +49,7 @@ START-OF-SELECTION.
 
   DATA:
     psename TYPE ssfpsename,
-    profile TYPE ssfpab.
+    profile TYPE localfile.
 
   CALL FUNCTION 'SSFPSE_FILENAME'
     EXPORTING
