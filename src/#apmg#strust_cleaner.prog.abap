@@ -152,7 +152,7 @@ START-OF-SELECTION.
         " Check if the issuing root certificate exists in PSE
         LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert_root>)
           WHERE subject = <cert>-issuer
-            AND subject = issuer.  " Self-signed = root
+            AND issuer = <cert>-issuer.  " Self-signed = root
           " Root certificate found, this intermediate/domain cert is superfluous
           to_remove = abap_true.
           IF cert_type = 'INTER'.
