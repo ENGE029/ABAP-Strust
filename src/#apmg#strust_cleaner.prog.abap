@@ -134,36 +134,29 @@ START-OF-SELECTION.
       ENDLOOP.
     ENDIF.
 
-    " Check for superfluous certificates (intermediate/domain when root exists)
+    " Check for superfluous certificates (intermediate/domain without issuer in PSE)
     IF p_super = abap_true AND to_remove = abap_false.
-      " If this is an intermediate or domain certificate, check if its root CA is present
+      " If this is an intermediate or domain certificate, check if its issuer exists
       IF cert_type = 'INTER' OR cert_type = 'DOMAIN'.
-        " Find the root certificate (issuer chain ends at self-signed cert)
-        DATA(issuer_cn) = VALUE string( ).
-        TRY.
-            DATA(issuer_dn) = /apmg/cl_distinguished_name=>parse( <cert>-issuer ).
-            IF line_exists( issuer_dn[ key = 'CN' ] ).
-              issuer_cn = issuer_dn[ key = 'CN' ]-name.
-            ENDIF.
-          CATCH cx_root.
-            CLEAR issuer_cn.
-        ENDTRY.
+        " Check if the issuing certificate exists in PSE
+        DATA(issuer_exists) = abap_false.
+        LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert_issuer>)
+          WHERE subject = <cert>-issuer.
+          issuer_exists = abap_true.
+          EXIT.
+        ENDLOOP.
 
-        " Check if the issuing root certificate exists in PSE
-        LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert_root>)
-          WHERE subject = <cert>-issuer
-            AND issuer = <cert>-issuer.  " Self-signed = root
-          " Root certificate found, this intermediate/domain cert is superfluous
+        " If issuer is NOT found, this certificate is orphaned/superfluous
+        IF issuer_exists = abap_false.
           to_remove = abap_true.
           IF cert_type = 'INTER'.
-            reason = 'superfluous (root CA exists)'.
+            reason = 'superfluous (issuer CA missing)'.
           ELSE.
-            reason = 'superfluous (domain cert in PSE)'.
+            reason = 'superfluous (issuer not in PSE)'.
           ENDIF.
           lv_color = col_group.
           total_super = total_super + 1.
-          EXIT.
-        ENDLOOP.
+        ENDIF.
       ENDIF.
     ENDIF.
 
