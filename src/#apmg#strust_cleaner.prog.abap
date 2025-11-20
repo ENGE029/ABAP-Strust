@@ -134,29 +134,26 @@ START-OF-SELECTION.
       ENDLOOP.
     ENDIF.
 
-    " Check for superfluous certificates (intermediate/domain without issuer in PSE)
+    " Check for superfluous certificates
+    " Domain certs are superfluous if their issuer (intermediate) exists
+    " Intermediate certs are superfluous if their issuer (root) exists
+    " Root certs are never superfluous (they're trust anchors)
     IF p_super = abap_true AND to_remove = abap_false.
-      " If this is an intermediate or domain certificate, check if its issuer exists
-      IF cert_type = 'INTER' OR cert_type = 'DOMAIN'.
+      IF cert_type = 'DOMAIN' OR cert_type = 'INTER'.
         " Check if the issuing certificate exists in PSE
-        DATA(issuer_exists) = abap_false.
         LOOP AT certs ASSIGNING FIELD-SYMBOL(<cert_issuer>)
           WHERE subject = <cert>-issuer.
-          issuer_exists = abap_true.
-          EXIT.
-        ENDLOOP.
-
-        " If issuer is NOT found, this certificate is orphaned/superfluous
-        IF issuer_exists = abap_false.
+          " Issuer found: this certificate is superfluous (issuer is sufficient for validation)
           to_remove = abap_true.
           IF cert_type = 'INTER'.
-            reason = 'superfluous (issuer CA missing)'.
+            reason = 'superfluous (root CA present)'.
           ELSE.
-            reason = 'superfluous (issuer not in PSE)'.
+            reason = 'superfluous (intermediate present)'.
           ENDIF.
           lv_color = col_group.
           total_super = total_super + 1.
-        ENDIF.
+          EXIT.
+        ENDLOOP.
       ENDIF.
     ENDIF.
 
